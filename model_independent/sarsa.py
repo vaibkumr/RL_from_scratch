@@ -38,7 +38,7 @@ def epsilon_greedy(Q, epsilon, n_actions, s, train=False):
         action = np.random.randint(0, n_actions)
     return action
 
-def sarsa(alpha, gamma, epsilon, episodes, max_steps, n_tests):
+def sarsa(alpha, gamma, epsilon, episodes, max_steps, n_tests, render = False, test=False):
     """
     @param alpha learning rate
     @param gamma decay factor
@@ -46,30 +46,39 @@ def sarsa(alpha, gamma, epsilon, episodes, max_steps, n_tests):
     @param max_steps for max step in each episode
     @param n_tests number of test episodes
     """
-    env = gym.make('FrozenLake-v0')
+    env = gym.make('Taxi-v2')
     n_states, n_actions = env.observation_space.n, env.action_space.n
     Q = init_q(n_states, n_actions, type="ones")
+    timestep_reward = []
     for episode in range(episodes):
         print(f"Episode: {episode}")
+        total_reward = 0
         s = env.reset()
         a = epsilon_greedy(Q, epsilon, n_actions, s)
         t = 0
         done = False
         while t < max_steps:
-            env.render()
+            if render:
+                env.render()
             t += 1
             s_, reward, done, info = env.step(a)
+            total_reward += reward
             a_ = epsilon_greedy(Q, epsilon, n_actions, s_)
             if done:
                 Q[s, a] += alpha * ( reward  - Q[s, a] )
             else:
-                Q[s, a] += alpha * ( reward + (gamma * Q[s_, a_]) - Q[s, a] )
+                Q[s, a] += alpha * ( reward + (gamma * Q[s_, a_] ) - Q[s, a] )
             s, a = s_, a_
             if done:
-                print(f"This episode took {t} timesteps")
+                if render:
+                    print(f"This episode took {t} timesteps and reward {total_reward}")
+                timestep_reward.append(total_reward)
                 break
-    print(f"Here are the Q values:\n{Q}\nTesting now:")
-    test_agent(Q, env, n_tests, n_actions)
+    if render:
+        print(f"Here are the Q values:\n{Q}\nTesting now:")
+    if test:
+        test_agent(Q, env, n_tests, n_actions)
+    return timestep_reward
 
 def test_agent(Q, env, n_tests, n_actions, delay=0.1):
     for test in range(n_tests):
@@ -77,17 +86,17 @@ def test_agent(Q, env, n_tests, n_actions, delay=0.1):
         s = env.reset()
         done = False
         epsilon = 0
+        total_reward = 0
         while True:
             time.sleep(delay)
             env.render()
             a = epsilon_greedy(Q, epsilon, n_actions, s, train=True)
             print(f"Chose action {a} for state {s}")
             s, reward, done, info = env.step(a)
+            total_reward += reward
             if done:
-                if reward > 0:
-                    print("Reached goal!")
-                else:
-                    print("Shit! dead x_x")
+                print(f"Episode reward: {total_reward}")
+                time.sleep(1)
                 break
 
 
@@ -95,7 +104,8 @@ if __name__ =="__main__":
     alpha = 0.4
     gamma = 0.999
     epsilon = 0.9
-    episodes = 1000
+    episodes = 3000
     max_steps = 2500
     n_tests = 20
-    sarsa(alpha, gamma, epsilon, episodes, max_steps, n_tests)
+    timestep_reward = sarsa(alpha, gamma, epsilon, episodes, max_steps, n_tests)
+    print(timestep_reward)

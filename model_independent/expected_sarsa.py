@@ -3,12 +3,11 @@ import numpy as np
 import time
 
 """
-Qlearning is an off policy learning python implementation.
-This is a python implementation of the qlearning algorithm in the Sutton and
-Barto's book on RL. It's called SARSA because - (state, action, reward, state,
-action). The only difference between SARSA and Qlearning is that SARSA takes the
-next action based on the current policy while qlearning takes the action with
-maximum utility of next state.
+SARSA on policy learning python implementation.
+This is a python implementation of the SARSA algorithm in the Sutton and Barto's book on
+RL. It's called SARSA because - (state, action, reward, state, action). The only difference
+between SARSA and Qlearning is that SARSA takes the next action based on the current policy
+while qlearning takes the action with maximum utility of next state.
 Using the simplest gym environment for brevity: https://gym.openai.com/envs/FrozenLake-v0/
 """
 
@@ -39,7 +38,7 @@ def epsilon_greedy(Q, epsilon, n_actions, s, train=False):
         action = np.random.randint(0, n_actions)
     return action
 
-def qlearning(alpha, gamma, epsilon, episodes, max_steps, n_tests, render = False, test=False):
+def expected_sarsa(alpha, gamma, epsilon, episodes, max_steps, n_tests, render = False, test=False):
     """
     @param alpha learning rate
     @param gamma decay factor
@@ -53,26 +52,27 @@ def qlearning(alpha, gamma, epsilon, episodes, max_steps, n_tests, render = Fals
     timestep_reward = []
     for episode in range(episodes):
         print(f"Episode: {episode}")
-        s = env.reset()
-        a = epsilon_greedy(Q, epsilon, n_actions, s)
-        t = 0
         total_reward = 0
+        s = env.reset()
+        t = 0
         done = False
         while t < max_steps:
             if render:
                 env.render()
             t += 1
+            a = epsilon_greedy(Q, epsilon, n_actions, s)
             s_, reward, done, info = env.step(a)
             total_reward += reward
-            a_ = np.argmax(Q[s_, :])
             if done:
                 Q[s, a] += alpha * ( reward  - Q[s, a] )
             else:
-                Q[s, a] += alpha * ( reward + (gamma * Q[s_, a_]) - Q[s, a] )
-            s, a = s_, a_
+                expected_value = np.mean(Q[s_,:])
+                # print(Q[s,:], sum(Q[s,:]), len(Q[s,:]), expected_value)
+                Q[s, a] += alpha * (reward + (gamma * expected_value) - Q[s, a])
+            s = s_
             if done:
-                if render:
-                    print(f"This episode took {t} timesteps and reward: {total_reward}")
+                if True:
+                    print(f"This episode took {t} timesteps and reward {total_reward}")
                 timestep_reward.append(total_reward)
                 break
     if render:
@@ -81,33 +81,35 @@ def qlearning(alpha, gamma, epsilon, episodes, max_steps, n_tests, render = Fals
         test_agent(Q, env, n_tests, n_actions)
     return timestep_reward
 
-def test_agent(Q, env, n_tests, n_actions, delay=1):
+def test_agent(Q, env, n_tests, n_actions, delay=0.1):
     for test in range(n_tests):
         print(f"Test #{test}")
         s = env.reset()
         done = False
         epsilon = 0
+        total_reward = 0
         while True:
             time.sleep(delay)
             env.render()
             a = epsilon_greedy(Q, epsilon, n_actions, s, train=True)
             print(f"Chose action {a} for state {s}")
             s, reward, done, info = env.step(a)
+            total_reward += reward
             if done:
-                if reward > 0:
-                    print("Reached goal!")
-                else:
-                    print("Shit! dead x_x")
-                time.sleep(3)
+                print(f"Episode reward: {total_reward}")
+                time.sleep(1)
                 break
 
 
 if __name__ =="__main__":
-    alpha = 0.4
-    gamma = 0.999
+    alpha = 0.1
+    gamma = 0.9
     epsilon = 0.9
-    episodes = 10000
+    episodes = 1000
     max_steps = 2500
-    n_tests = 2
-    timestep_reward = qlearning(alpha, gamma, epsilon, episodes, max_steps, n_tests, test = True)
+    n_tests = 20
+    timestep_reward = expected_sarsa(alpha, gamma, epsilon,
+                                     episodes, max_steps, n_tests,
+                                     render=False, test=True
+                                     )
     print(timestep_reward)
