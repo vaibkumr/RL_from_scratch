@@ -32,7 +32,7 @@ def epsilon_greedy(Q, epsilon, n_actions, s, train=False):
     @param s number of states
     @param train if true then no random actions selected
     """
-    if train or np.random.rand() < epsilon:
+    if train or np.random.rand() >= epsilon:
         action = np.argmax(Q[s, :])
     else:
         action = np.random.randint(0, n_actions)
@@ -103,7 +103,7 @@ def test_agent(Q, env, n_tests, n_actions, delay=0.1):
 if __name__ =="__main__":
     alpha = 0.4
     gamma = 0.999
-    epsilon = 0.9
+    epsilon = 0.1
     episodes = 3000
     max_steps = 2500
     n_tests = 20
