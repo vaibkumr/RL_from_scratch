@@ -3,12 +3,9 @@ import numpy as np
 import time
 
 """
-SARSA on policy learning python implementation.
-This is a python implementation of the SARSA algorithm in the Sutton and Barto's
-book on RL. It's called SARSA because - (state, action, reward, state, action).
-The only difference between SARSA and Qlearning is that SARSA takes the next
-action based on the current policy while qlearning takes the action with maximum
-utility of next state. Using the simplest gym environment for brevity:
+TD-lambda python implementation. (There might be a few errors which I am yet to
+fix). This is a python implementation of the TD-lambda python algorithm in the
+Sutton and Barto's book on RL. Using the simplest gym environment for brevity:
 https://gym.openai.com/envs/FrozenLake-v0/
 """
 
@@ -39,48 +36,48 @@ def epsilon_greedy(Q, epsilon, n_actions, s, train=False):
         action = np.random.randint(0, n_actions)
     return action
 
-def sarsa(alpha, gamma, epsilon, episodes, max_steps, n_tests, render = False,
-                test=False):
-    """
-    @param alpha learning rate
-    @param gamma decay factor
-    @param epsilon for exploration
-    @param max_steps for max step in each episode
-    @param n_tests number of test episodes
-    """
+def td_lambda(alpha, gamma, epsilon, episodes, lmbda, max_steps=2500,
+                    n_tests=False, decay=False, render=False):
+
     env = gym.make('Taxi-v2')
     n_states, n_actions = env.observation_space.n, env.action_space.n
     Q = init_q(n_states, n_actions, type="ones")
-    timestep_reward = []
+    E_trace = init_q(n_states, n_actions, type="ones") #Same as Q-Table (Basically an accumalation of 'eligibility' of each state)
+    total_rewards = []
+
     for episode in range(episodes):
         print(f"Episode: {episode}")
+        # Epsilon decay
+        if decay:
+            epsilon = epsilon / (episode + 1e-5)
+
         total_reward = 0
         s = env.reset()
         a = epsilon_greedy(Q, epsilon, n_actions, s)
-        t = 0
         done = False
+        t = 0
         while t < max_steps:
             if render:
                 env.render()
             t += 1
-            s_, reward, done, info = env.step(a)
-            total_reward += reward
-            a_ = epsilon_greedy(Q, epsilon, n_actions, s_)
-            if done:
-                Q[s, a] += alpha * ( reward  - Q[s, a] )
-            else:
-                Q[s, a] += alpha * ( reward + (gamma * Q[s_, a_] ) - Q[s, a] )
+            s_, reward, done, _ = env.step(a)
+            a_ = np.argmax(Q[s, :])
+            delta = reward + (gamma * Q[s_, a_]) - Q[s, a]
+            E_trace[s, a] += 1
+            for _state in range(n_states):
+                Q[_state, :] += alpha*delta*E_trace[_state, :]
+                E_trace[_state, :] = E_trace[_state, :]*gamma*lmbda
+            total_reward+= reward
             s, a = s_, a_
             if done:
                 if render:
                     print(f"This episode took {t} timesteps and reward {total_reward}")
-                timestep_reward.append(total_reward)
+                total_rewards.append(total_reward)
                 break
-    if render:
-        print(f"Here are the Q values:\n{Q}\nTesting now:")
-    if test:
+    if n_tests:
         test_agent(Q, env, n_tests, n_actions)
-    return timestep_reward
+    return Q, total_rewards
+
 
 def test_agent(Q, env, n_tests, n_actions, delay=0.1):
     for test in range(n_tests):
@@ -103,12 +100,16 @@ def test_agent(Q, env, n_tests, n_actions, delay=0.1):
 
 
 if __name__ =="__main__":
-    alpha = 0.4
-    gamma = 0.999
+    alpha = 0.1
+    gamma = 0.99
     epsilon = 0.1
-    episodes = 3000
+    episodes = 100
+    lmbda = 0.5
     max_steps = 2500
-    n_tests = 20
-    timestep_reward = sarsa(alpha, gamma, epsilon, episodes, max_steps,
-                    n_tests, True, True)
-    print(timestep_reward)
+    n_tests = 5
+    decay = False
+    render = False
+    Q, total_rewards = td_lambda(alpha, gamma, epsilon, episodes,
+                        lmbda, max_steps, n_tests, decay, render)
+    print(total_rewards)
+    print(Q)
