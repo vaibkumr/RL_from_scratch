@@ -127,6 +127,6 @@ if __name__ =="__main__":
     decay = False
     render = False
     Q, total_rewards = n_step_sarsa(alpha, gamma, epsilon, episodes,
-                        n, max_steps, n_tests, decay, render)
-    print(total_rewards)
-    print(Q)
+                        n, max_steps, n_tests, decay, render)                    
+    # print(total_rewards)
+    # print(Q)
